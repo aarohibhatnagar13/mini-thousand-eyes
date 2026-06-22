@@ -2,9 +2,10 @@
 const mysql = require('mysql2');
 // Load the hidden variables from our .env file
 require('dotenv').config();
-
+console.log("DEBUG: Connecting to host:", process.env.DB_HOST, "with user:", process.env.DB_USER);
 // Create a Connection Pool (Industry Standard for DBMS performance)
 const pool = mysql.createPool({
+    socketPath: process.env.DB_SOCKET_PATH || undefined, //added socket path to connect to the database
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,

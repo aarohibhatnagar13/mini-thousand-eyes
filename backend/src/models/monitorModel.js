@@ -29,13 +29,61 @@ const logHeartbeat = async (monitorId, status, latency) => {
 
     try {
         // Phase 3: Execute the query
-        // await db.execute(...)
+        await db.execute(sql, values);
+
         console.log("Heartbeat saved successfully to DB");
     } catch (error) {
         // Handle DB errors (connection lost, etc.)
         console.error("Database Error:", error.message);
-        throw error; 
+        throw error;
     }
 };
 
-module.exports = { logHeartbeat };
+
+
+//new function
+const getHeartbeatsByMonitor = async (monitorId) => {
+    // Validation
+    if (!Number.isInteger(monitorId) || monitorId <= 0) {
+        throw new Error("Invalid monitorId: Must be a positive integer.");
+    }
+
+    const sql = `
+        SELECT status, latency, created_at
+        FROM heartbeats
+        WHERE monitor_id = ?
+        ORDER BY created_at DESC
+        LIMIT 10
+    `;
+
+    const [rows] = await db.execute(sql, [monitorId]);
+
+    return rows;
+};
+
+
+
+//Third function
+const getMonitorSummary = async (monitorId) => {
+    // Validation
+    if (!Number.isInteger(monitorId) || monitorId <= 0) {
+        throw new Error("Invalid monitorId: Must be a positive integer.");
+    }
+
+    const sql = `SELECT
+            COUNT(*) AS total_checks,
+            AVG(latency) AS avg_latency,
+            (SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS uptime_percent
+        FROM heartbeats
+        WHERE monitor_id = ?`;
+
+    const [rows] = await db.execute(sql, [monitorId]);
+
+    return rows[0];
+};
+
+module.exports = {
+    logHeartbeat,
+    getHeartbeatsByMonitor,
+    getMonitorSummary
+};
