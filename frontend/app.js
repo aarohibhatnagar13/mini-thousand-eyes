@@ -1,171 +1,130 @@
-// The URL of your Node.js Backend API
-const API_BASE_URL = 'http://localhost:3000/api';
+/**
+ * DATA SET 1: Mock Monitor Status (Phase 3)
+ */
+const mockMonitors = [
+    { id: 1, name: "Main Web Server", target: "google.com", protocol: "HTTP", status: "UP", latency_ms: 45 },
+    { id: 2, name: "Payment API", target: "192.168.1.50", protocol: "ICMP", status: "DOWN", latency_ms: null },
+    { id: 3, name: "Customer Portal", target: "amazon.com", protocol: "HTTP", status: "UP", latency_ms: 120 },
+    { id: 4, name: "Database Cluster", target: "db.internal.net", protocol: "TCP", status: "UP", latency_ms: 5 }
+];
 
 /**
- * 1. Fetch the monitors from the backend
+ * DATA SET 2: Mock Time-Series Latency (Phase 4)
  */
-async function fetchMonitors() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/monitors`);
-        if (!response.ok) throw new Error("Failed to fetch data");
-        
-        const data = await response.json();
-        renderCards(data); // Send the data to the rendering function
-    } catch (error) {
-        console.error("Error connecting to backend:", error);
-        document.getElementById('status-container').innerHTML = 
-            `<p style="color: red;">Failed to connect to Cisco Engine API.</p>`;
-    }
-}
+const mockHistory = [
+    { time: "10:00 AM", latency_ms: 45 },
+    { time: "10:05 AM", latency_ms: 48 },
+    { time: "10:10 AM", latency_ms: 52 },
+    { time: "10:15 AM", latency_ms: 300 }, // Spike!
+    { time: "10:20 AM", latency_ms: 0 }    // Down!
+];
 
 /**
- * 2. Generate the HTML cards dynamically
+ * PHASE 3: DOM Manipulation
+ * This function builds the cards and injects them into your friend's CSS Grid.
  */
-function renderCards(monitors) {
+function renderMonitorCards() {
     const container = document.getElementById('status-container');
-    container.innerHTML = ''; // Clear out any old cards before drawing new ones
+    if (!container) return;
 
-    monitors.forEach(monitor => {
-        // Determine CSS class based on status (lowercase from backend)
-        const stateClass = monitor.status === 'up' ? 'is-up' : 'is-down';
+    container.innerHTML = ''; // Clear previous content
+
+    mockMonitors.forEach(monitor => {
+        // Match the CSS classes your friend wrote: 'is-up' or 'is-down'
+        const stateClass = monitor.status === 'UP' ? 'is-up' : 'is-down';
+        const displayLatency = monitor.latency_ms !== null ? monitor.latency_ms : '--';
+
+        // Create the card using your friend's exact HTML structure
+        const card = document.createElement('div');
+        card.className = `monitor-card ${stateClass}`;
         
-        // Format latency (if it's down, show '--')
-        const displayLatency = monitor.status === 'up' ? monitor.latency : '--';
-        const statusText = monitor.status === 'up' ? 'UP' : 'DOWN';
-
-        // Create the card HTML template
-        const cardHTML = `
-            <div class="monitor-card ${stateClass}">
-                <div class="card-header">
-                    <h3 class="monitor-name">${monitor.name}</h3>
-                    <span class="protocol-badge">${monitor.protocol}</span>
+        card.innerHTML = `
+            <div class="card-header">
+                <h3 class="monitor-name">${monitor.name}</h3>
+                <span class="protocol-badge">${monitor.protocol}</span>
+            </div>
+            <div class="card-body">
+                <span class="target-url">${monitor.target}</span>
+            </div>
+            <div class="card-footer">
+                <div class="status-indicator">
+                    <div class="dot"></div>
+                    <span>${monitor.status}</span>
                 </div>
-                <div class="card-body">
-                    <span class="target-url">${monitor.target}</span>
-                </div>
-                <div class="card-footer">
-                    <div class="status-indicator">
-                        <div class="dot"></div>
-                        <span>${statusText}</span>
-                    </div>
-                    <div class="latency-metric">
-                        <span class="value">${displayLatency}</span>
-                        <span class="unit">ms</span>
-                    </div>
+                <div class="latency-metric">
+                    <span class="value">${displayLatency}</span>
+                    <span class="unit">ms</span>
                 </div>
             </div>
         `;
-
-        // Inject the card into the container
-        container.innerHTML += cardHTML;
+        container.appendChild(card);
     });
 }
 
 /**
- * 3. Start the Application
+ * PHASE 4: Data Visualization (Chart.js)
  */
-function init() {
-    console.log("Cisco Frontend Engine Started");
-    fetchMonitors(); // Fetch immediately on load
+function renderLatencyChart() {
+    const ctx = document.getElementById('latency-chart');
+    if (!ctx) return;
 
-    // Auto-refresh the dashboard every 30 seconds
-    setInterval(fetchMonitors, 30000); 
-}
-// --- NEW CODE FOR THE CHART ---
+    // Prepare data from Mock Set 2
+    const labels = mockHistory.map(item => item.time);
+    const dataPoints = mockHistory.map(item => item.latency_ms);
 
-let latencyChart = null; // Global variable to hold the chart instance
-
-/**
- * 4. Fetch the history data for Google (Monitor ID: 1)
- */
-async function fetchChartData() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/monitors/1/history`);
-        if (!response.ok) throw new Error("Failed to fetch history");
-        
-        const historyData = await response.json();
-        drawChart(historyData);
-    } catch (error) {
-        console.error("Error fetching chart data:", error);
-    }
-}
-
-/**
- * 5. Draw the Chart.js Line Graph
- */
-function drawChart(historyData) {
-    const ctx = document.getElementById('latency-chart').getContext('2d');
-    
-    // Extract the exact data we need for the X and Y axes
-    const labels = historyData.map(ping => {
-        const date = new Date(ping.created_at);
-        // Format time to look clean: "10:05:30 AM"
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    });
-    const latencies = historyData.map(ping => ping.latency);
-
-    // Destroy the old chart if it exists so it doesn't glitch when refreshing
-    if (latencyChart) {
-        latencyChart.destroy();
-    }
-
-    // Create the sleek, dark-mode chart
-    latencyChart = new Chart(ctx, {
+    new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels, // X-axis (Times)
+            labels: labels,
             datasets: [{
                 label: 'Latency (ms)',
-                data: latencies, // Y-axis (Speed)
-                borderColor: '#3b82f6', // Cisco/Tech Blue line
-                backgroundColor: 'rgba(59, 130, 246, 0.1)', // Faint blue glow underneath
+                data: dataPoints,
+                borderColor: '#3b82f6', // Cisco Blue
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 borderWidth: 2,
-                tension: 0.3, // Smooth, curved lines
+                tension: 0.4,
                 fill: true,
-                pointBackgroundColor: '#10b981', // Healthy green dots on the line
-                pointRadius: 4,
-                pointHoverRadius: 6
+                pointBackgroundColor: (context) => {
+                    const val = context.dataset.data[context.dataIndex];
+                    return val === 0 ? '#ef4444' : '#10b981'; // Red if 0, Green if healthy
+                }
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }, // Hide the legend for a cleaner look
-                tooltip: { mode: 'index', intersect: false }
-            },
+            plugins: { legend: { display: false } },
             scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: { color: '#27272a' }, // Match our CSS dark borders
-                    ticks: { color: '#a1a1aa' } // Muted gray text
-                },
-                x: {
-                    grid: { display: false }, // Hide vertical grid lines for modern look
-                    ticks: { color: '#a1a1aa', maxTicksLimit: 7 } // Don't crowd the bottom text
-                }
+                y: { beginAtZero: true, grid: { color: '#27272a' }, ticks: { color: '#a1a1aa' } },
+                x: { grid: { display: false }, ticks: { color: '#a1a1aa' } }
             }
         }
     });
 }
 
-/**
- * 6. Update the Init function to include the Chart!
- */
+// Initialize the Dashboard
 function init() {
-    console.log("Cisco Frontend Engine Started");
-    
-    // Initial fetch on load
-    fetchMonitors(); 
-    fetchChartData(); // <--- ADD THIS LINE
-
-    // Auto-refresh the dashboard every 60 seconds
-    setInterval(() => {
-        fetchMonitors();
-        fetchChartData(); // <--- ADD THIS LINE
-    }, 60000); 
+    console.log("Observability Dashboard Initialized with Mock Data");
+    renderMonitorCards();
+    renderLatencyChart();
 }
 
+// Run when the page loads
+document.addEventListener('DOMContentLoaded', init);
 
-// Run the init function when the page loads
-init();
+function updateSummary() {
+    const total = mockMonitors.length;
+    const up = mockMonitors.filter(m => m.status === 'UP').length;
+    const down = mockMonitors.filter(m => m.status === 'DOWN').length;
+
+    document.getElementById('total-count').textContent = total;
+    document.getElementById('up-count').textContent = up;
+    document.getElementById('down-count').textContent = down;
+}
+
+// Update your init function to include this:
+function init() {
+    renderMonitorCards();
+    renderLatencyChart();
+    updateSummary(); // <--- Add this
+}
