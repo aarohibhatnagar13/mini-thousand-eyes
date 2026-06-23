@@ -328,3 +328,35 @@ body {
 .monitor-card.is-down .latency-metric .value {
     color: var(--state-down); /* Make the latency text red to show failure */
 }
+
+.summary-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 8px; /* Space between summary and monitors */
+}
+
+.stat-card {
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    padding: 16px 24px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.stat-value.up { color: var(--state-up); }
+.stat-value.down { color: var(--state-down); }
